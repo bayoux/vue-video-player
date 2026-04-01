@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Pause, Play } from '@lucide/vue'
+import { Maximize, Minimize, Pause, Play } from '@lucide/vue'
 import { computed, onUnmounted, ref } from 'vue'
 
 interface Props {
@@ -12,6 +12,7 @@ defineProps<Props>()
 const videoRef = ref<HTMLVideoElement | null>(null)
 const isPlaying = ref(false)
 const isDragging = ref(false)
+const isFullscreen = ref(false)
 
 const currentTime = ref(0)
 const duration = ref(0)
@@ -26,6 +27,12 @@ onUnmounted(() => {
     cancelAnimationFrame(animationFrameId.value)
   }
 })
+
+if (typeof document !== 'undefined') {
+  document.onfullscreenchange = () => {
+    isFullscreen.value = !!document.fullscreenElement
+  }
+}
 
 function togglePlay() {
   if (!videoRef.value) return
@@ -43,6 +50,26 @@ function togglePlay() {
       cancelAnimationFrame(animationFrameId.value)
     }
   }
+}
+
+async function toggleFullscreen() {
+  if (!videoRef.value) return
+
+  const container = videoRef.value.parentElement
+
+  if (!document.fullscreenElement) {
+    try {
+      await container?.requestFullscreen()
+      isFullscreen.value = true
+    } catch (err) {
+      console.error(`Error attempting to enable full-screen mode: ${err}`)
+    }
+
+    return
+  }
+
+  document.exitFullscreen()
+  isFullscreen.value = false
 }
 
 function onLoadedMetadata() {
@@ -113,7 +140,7 @@ function formatTime(seconds: number): string {
 </script>
 
 <template>
-  <div class="vp-container" @click="togglePlay">
+  <div class="vp-container" @click="togglePlay" :class="{ 'is-fullscreen': isFullscreen }">
     <video
       ref="videoRef"
       :src="src"
@@ -124,18 +151,13 @@ function formatTime(seconds: number): string {
     />
 
     <div class="vp-overlay" :class="{ 'is-playing': isPlaying }">
-      <button class="vp-play-btn">
-        <Pause v-if="isPlaying" :size="24" color="white" fill="white" />
-        <Play v-else :size="24" color="white" fill="white" />
-      </button>
+      <div class="vp-play-btn">
+        <Play v-if="!isPlaying" :size="30" color="white" fill="white" />
+        <Pause v-else :size="30" color="white" fill="white" />
+      </div>
     </div>
 
     <div class="vp-controller" :class="{ visible: !isPlaying || isDragging }" @click.stop>
-      <div class="time-info">
-        <span>{{ formatTime(currentTime) }}</span>
-        <span>{{ formatTime(duration) }}</span>
-      </div>
-
       <div class="range-wrapper">
         <input
           type="range"
@@ -152,18 +174,25 @@ function formatTime(seconds: number): string {
           class="vp-range-hidden"
         />
 
-        <div class="custom-track">
-          <div
-            class="progress-line"
-            :class="{ 'no-transition': isDragging }"
-            :style="{ width: progressPercent + '%' }"
-          />
-          <div
-            class="custom-thumb"
-            :class="{ 'no-transition': isDragging }"
-            :style="{ left: progressPercent + '%' }"
-          />
+        <div class="custom-track-container">
+          <div class="custom-track">
+            <div class="progress-line" :style="{ width: progressPercent + '%' }" />
+            <div class="custom-thumb" :style="{ left: progressPercent + '%' }" />
+          </div>
         </div>
+      </div>
+
+      <div class="controls-row">
+        <div class="time-block">
+          <span class="current">{{ formatTime(currentTime) }}</span>
+          <span class="divider">/</span>
+          <span class="total">{{ formatTime(duration) }}</span>
+        </div>
+
+        <button class="fullscreen-btn" @click="toggleFullscreen">
+          <Minimize v-if="isFullscreen" :size="20" color="white" stroke-width="2.5" />
+          <Maximize v-else :size="20" color="white" stroke-width="2.5" />
+        </button>
       </div>
     </div>
   </div>
@@ -177,11 +206,10 @@ function formatTime(seconds: number): string {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-width: 20rem;
   background-color: #000;
-  border-radius: 1rem;
+  border-radius: 12px;
   overflow: hidden;
-  cursor: pointer;
+  user-select: none;
 }
 
 video {
@@ -190,19 +218,16 @@ video {
   object-fit: contain;
 }
 
-/* Overlay & Central Button */
 .vp-overlay {
   position: absolute;
   inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.2);
-  transition:
-    opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.4s ease;
-  pointer-events: none;
+  background: rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.2, 0, 0.2, 1);
   z-index: 2;
+  pointer-events: none;
 }
 
 .vp-overlay.is-playing {
@@ -211,33 +236,39 @@ video {
 }
 
 .vp-play-btn {
-  background: rgba(255, 255, 255, 0.2);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  width: 72px;
+  height: 72px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border-radius: 50%;
-  width: 4rem;
-  height: 4rem;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-/* Controller visibility logic */
 .vp-controller {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 40px 20px 20px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+  padding: 10px 16px 12px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.4) 60%,
+    transparent 100%
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 3;
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(5px);
   transition:
-    opacity 0.3s,
-    transform 0.3s;
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .vp-container:hover .vp-controller,
@@ -246,25 +277,55 @@ video {
   transform: translateY(0);
 }
 
-.time-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-  color: #fff;
-  font-family: sans-serif;
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.9;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-/* Custom Range Engine */
 .range-wrapper {
   position: relative;
   width: 100%;
-  height: 20px;
+  height: 12px;
+  margin-bottom: 6px;
   display: flex;
   align-items: center;
+}
+
+.custom-track-container {
+  width: 100%;
+  padding: 4px 0;
+}
+
+.custom-track {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 2px;
+  position: relative;
+  transition: height 0.15s ease;
+}
+
+.range-wrapper:hover .custom-track {
+  height: 5px;
+}
+
+.progress-line {
+  height: 100%;
+  background: #fff;
+  border-radius: 2px;
+  position: absolute;
+}
+
+.custom-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.range-wrapper:hover .custom-thumb,
+.vp-range-hidden:active ~ .custom-track .custom-thumb {
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .vp-range-hidden {
@@ -276,50 +337,43 @@ video {
   z-index: 5;
 }
 
-.custom-track {
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-  position: relative;
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
 }
 
-.progress-line {
-  height: 100%;
-  background: #fff;
-  border-radius: 2px;
-  transition: width 0.2s linear;
+.time-block {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 400;
+  opacity: 0.9;
 }
 
-.custom-thumb {
-  position: absolute;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  background: #fff;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  transition: left 0.2s linear;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+.time-block .divider {
+  opacity: 0.5;
+  font-size: 11px;
 }
 
-.progress-line,
-.custom-thumb {
-  transition: none;
+.fullscreen-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  padding: 2px;
+  opacity: 0.75;
+  transition: opacity 0.2s;
 }
 
-.vp-container:not(.is-playing) .progress-line,
-.vp-container:not(.is-playing) .custom-thumb {
-  transition:
-    width 0.1s ease,
-    left 0.1s ease;
+.fullscreen-btn:hover {
+  opacity: 1;
 }
 
-.no-transition {
-  transition: none !important;
-}
-
-.range-wrapper:hover .custom-thumb {
-  transform: translate(-50%, -50%) scale(1.3);
+.is-fullscreen {
+  border-radius: 0;
 }
 </style>
