@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Maximize, Minimize, Pause, Play } from '@lucide/vue'
-import { computed, onUnmounted, ref } from 'vue'
+import { ref } from 'vue'
+import VideoRange from './VideoRange.vue'
+import { useVideoPlayer } from '../composables/useVideoPlayer'
+import { formatTime } from '../utils'
 
 interface Props {
   src: string
@@ -10,133 +13,22 @@ interface Props {
 defineProps<Props>()
 
 const videoRef = ref<HTMLVideoElement | null>(null)
-const isPlaying = ref(false)
-const isDragging = ref(false)
-const isFullscreen = ref(false)
 
-const currentTime = ref(0)
-const duration = ref(0)
-const animationFrameId = ref<number | null>(null)
-
-const progressPercent = computed(() => {
-  return duration.value ? (currentTime.value / duration.value) * 100 : 0
-})
-
-onUnmounted(() => {
-  if (animationFrameId.value) {
-    cancelAnimationFrame(animationFrameId.value)
-  }
-})
-
-if (typeof document !== 'undefined') {
-  document.onfullscreenchange = () => {
-    isFullscreen.value = !!document.fullscreenElement
-  }
-}
-
-function togglePlay() {
-  if (!videoRef.value) return
-
-  if (videoRef.value.paused) {
-    videoRef.value.play()
-    isPlaying.value = true
-
-    updateSmoothProgress()
-  } else {
-    videoRef.value.pause()
-    isPlaying.value = false
-
-    if (animationFrameId.value) {
-      cancelAnimationFrame(animationFrameId.value)
-    }
-  }
-}
-
-async function toggleFullscreen() {
-  if (!videoRef.value) return
-
-  const container = videoRef.value.parentElement
-
-  if (!document.fullscreenElement) {
-    try {
-      await container?.requestFullscreen()
-      isFullscreen.value = true
-    } catch (err) {
-      console.error(`Error attempting to enable full-screen mode: ${err}`)
-    }
-
-    return
-  }
-
-  document.exitFullscreen()
-  isFullscreen.value = false
-}
-
-function onLoadedMetadata() {
-  if (videoRef.value) {
-    duration.value = videoRef.value.duration
-  }
-}
-
-function onInput(e: Event) {
-  const target = e.target as HTMLInputElement
-  const value = Number(target.value)
-  currentTime.value = value
-
-  if (videoRef.value) {
-    videoRef.value.currentTime = Number(target.value)
-  }
-}
-
-function updateSmoothProgress() {
-  if (videoRef.value && !isDragging.value && isPlaying.value) {
-    const time = videoRef.value.currentTime
-    currentTime.value = time
-
-    if (time >= duration.value) {
-      onVideoEnded()
-      return
-    }
-
-    if (animationFrameId.value) cancelAnimationFrame(animationFrameId.value)
-
-    animationFrameId.value = requestAnimationFrame(updateSmoothProgress)
-  }
-}
-
-const onStartDragging = () => (isDragging.value = true)
-
-function onEndDragging() {
-  isDragging.value = false
-
-  if (isPlaying.value) {
-    updateSmoothProgress()
-  }
-}
-
-function onVideoEnded() {
-  isPlaying.value = false
-  currentTime.value = duration.value
-
-  if (animationFrameId.value) {
-    cancelAnimationFrame(animationFrameId.value)
-    animationFrameId.value = null
-  }
-}
-
-function formatTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = Math.floor(seconds % 60)
-
-  const parts = [
-    h > 0 ? h : null,
-    (h > 0 && m < 10 ? '0' : '') + m,
-    (s < 10 ? '0' : '') + s,
-  ].filter(Boolean)
-
-  return parts.join(':')
-}
+const {
+  isPlaying,
+  isFullscreen,
+  currentTime,
+  duration,
+  progressPercent,
+  isDragging,
+  togglePlay,
+  toggleFullscreen,
+  onLoadedMetadata,
+  onVideoEnded,
+  onInput,
+  onStartDragging,
+  onEndDragging,
+} = useVideoPlayer(videoRef)
 </script>
 
 <template>
@@ -158,29 +50,14 @@ function formatTime(seconds: number): string {
     </div>
 
     <div class="vp-controller" :class="{ visible: !isPlaying || isDragging }" @click.stop>
-      <div class="range-wrapper">
-        <input
-          type="range"
-          min="0"
-          :max="duration"
-          step="0.01"
-          :value="currentTime"
-          @input="onInput"
-          @mousedown="onStartDragging"
-          @mouseup="onEndDragging"
-          @touchstart="onStartDragging"
-          @touchend="onEndDragging"
-          @change="onEndDragging"
-          class="vp-range-hidden"
-        />
-
-        <div class="custom-track-container">
-          <div class="custom-track">
-            <div class="progress-line" :style="{ width: progressPercent + '%' }" />
-            <div class="custom-thumb" :style="{ left: progressPercent + '%' }" />
-          </div>
-        </div>
-      </div>
+      <VideoRange
+        :currentTime="currentTime"
+        :duration="duration"
+        :progressPercent="progressPercent"
+        @on-input="onInput"
+        @on-start-dragging="onStartDragging"
+        @on-end-dragging="onEndDragging"
+      />
 
       <div class="controls-row">
         <div class="time-block">
@@ -275,66 +152,6 @@ video {
 .vp-controller.visible {
   opacity: 1;
   transform: translateY(0);
-}
-
-.range-wrapper {
-  position: relative;
-  width: 100%;
-  height: 12px;
-  margin-bottom: 6px;
-  display: flex;
-  align-items: center;
-}
-
-.custom-track-container {
-  width: 100%;
-  padding: 4px 0;
-}
-
-.custom-track {
-  width: 100%;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 2px;
-  position: relative;
-  transition: height 0.15s ease;
-}
-
-.range-wrapper:hover .custom-track {
-  height: 5px;
-}
-
-.progress-line {
-  height: 100%;
-  background: #fff;
-  border-radius: 2px;
-  position: absolute;
-}
-
-.custom-thumb {
-  position: absolute;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  background: #fff;
-  border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  transition: transform 0.15s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-}
-
-.range-wrapper:hover .custom-thumb,
-.vp-range-hidden:active ~ .custom-track .custom-thumb {
-  transform: translate(-50%, -50%) scale(1);
-}
-
-.vp-range-hidden {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 5;
 }
 
 .controls-row {
