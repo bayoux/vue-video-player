@@ -13,6 +13,8 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
   const isMuted = ref(false)
   const previousVolume = ref(1)
 
+  const playbackRate = ref(1)
+
   const progressPercent = computed(() => {
     return duration.value ? (currentTime.value / duration.value) * 100 : 0
   })
@@ -137,6 +139,13 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     }
   }
 
+  function setPlaybackRate(rate: number) {
+    if (!videoRef.value) return
+
+    videoRef.value.playbackRate = rate
+    playbackRate.value = rate
+  }
+
   if (typeof document !== 'undefined') {
     document.onfullscreenchange = () => {
       isFullscreen.value = !!document.fullscreenElement
@@ -158,6 +167,7 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     progressPercent,
     volume,
     isMuted,
+    playbackRate,
     togglePlay,
     onStartDragging,
     onEndDragging,
@@ -167,5 +177,6 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     onInput,
     toggleMute,
     onVolumeInput,
+    setPlaybackRate,
   }
 }

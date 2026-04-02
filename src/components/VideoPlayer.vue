@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import VideoRange from './VideoRange.vue'
 import { useVideoPlayer } from '../composables/useVideoPlayer'
 import { formatTime } from '../utils'
+import VideoSpeedControl from './VideoSpeedControl.vue'
 
 interface Props {
   src: string
@@ -23,6 +24,7 @@ const {
   isDragging,
   volume,
   isMuted,
+  playbackRate,
   togglePlay,
   toggleFullscreen,
   onLoadedMetadata,
@@ -32,6 +34,7 @@ const {
   onEndDragging,
   toggleMute,
   onVolumeInput,
+  setPlaybackRate,
 } = useVideoPlayer(videoRef)
 </script>
 
@@ -73,6 +76,8 @@ const {
         </div>
 
         <div class="right-controls">
+          <VideoSpeedControl :playback-rate="playbackRate" @set-speed="setPlaybackRate" />
+
           <div class="volume-control">
             <button class="mute-btn" @click="toggleMute">
               <VolumeX v-if="isMuted || volume === 0" :size="20" color="white" />
