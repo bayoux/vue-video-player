@@ -25,6 +25,7 @@ const {
   volume,
   isMuted,
   playbackRate,
+  isLoading,
   togglePlay,
   toggleFullscreen,
   onLoadedMetadata,
@@ -48,6 +49,10 @@ const {
       @loadedmetadata="onLoadedMetadata"
       @ended="onVideoEnded"
     />
+
+    <div v-if="isLoading" class="vp-loader">
+      <div class="spinner"></div>
+    </div>
 
     <div class="vp-overlay" :class="{ 'is-playing': isPlaying }">
       <div class="vp-play-btn">
@@ -300,5 +305,25 @@ video {
 
 .is-fullscreen {
   border-radius: 0;
+}
+
+.vp-loader {
+  position: absolute;
+  z-index: 5;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

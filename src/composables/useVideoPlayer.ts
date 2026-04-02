@@ -4,6 +4,7 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
   const isPlaying = ref(false)
   const isDragging = ref(false)
   const isFullscreen = ref(false)
+  const isLoading = ref(false)
 
   const currentTime = ref(0)
   const duration = ref(0)
@@ -114,6 +115,7 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
   function onLoadedMetadata() {
     if (videoRef.value) {
       duration.value = videoRef.value.duration
+      setupBufferLogic()
     }
   }
 
@@ -146,6 +148,13 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     playbackRate.value = rate
   }
 
+  function setupBufferLogic() {
+    if (!videoRef.value) return
+    videoRef.value.onwaiting = () => (isLoading.value = true)
+    videoRef.value.onplaying = () => (isLoading.value = false)
+    videoRef.value.onpause = () => (isLoading.value = false)
+  }
+
   if (typeof document !== 'undefined') {
     document.onfullscreenchange = () => {
       isFullscreen.value = !!document.fullscreenElement
@@ -168,6 +177,7 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     volume,
     isMuted,
     playbackRate,
+    isLoading,
     togglePlay,
     onStartDragging,
     onEndDragging,
@@ -178,5 +188,6 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     toggleMute,
     onVolumeInput,
     setPlaybackRate,
+    setupBufferLogic,
   }
 }
