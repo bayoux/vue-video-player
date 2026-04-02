@@ -36,11 +36,18 @@ const {
   toggleMute,
   onVolumeInput,
   setPlaybackRate,
+  handleKeyDown,
 } = useVideoPlayer(videoRef)
 </script>
 
 <template>
-  <div class="vp-container" @click="togglePlay" :class="{ 'is-fullscreen': isFullscreen }">
+  <div
+    class="vp-container"
+    :tabindex="0"
+    @click="togglePlay"
+    @keydown="handleKeyDown"
+    :class="{ 'is-fullscreen': isFullscreen }"
+  >
     <video
       ref="videoRef"
       :src="src"

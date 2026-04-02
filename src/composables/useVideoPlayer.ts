@@ -155,6 +155,60 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     videoRef.value.onpause = () => (isLoading.value = false)
   }
 
+  function seek(amount: number) {
+    if (!videoRef.value) return
+    const newTime = videoRef.value.currentTime + amount
+    videoRef.value.currentTime = Math.max(0, Math.min(newTime, duration.value))
+    currentTime.value = videoRef.value.currentTime
+  }
+
+  function adjustVolume(amount: number) {
+    if (!videoRef.value) return
+    const newVolume = Math.max(0, Math.min(1, volume.value + amount))
+    volume.value = newVolume
+    videoRef.value.volume = newVolume
+    isMuted.value = newVolume === 0
+  }
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const isInput = ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)
+    if (isInput) return
+
+    switch (e.code) {
+      case 'Space':
+      case 'KeyK':
+        e.preventDefault()
+        togglePlay()
+        break
+      case 'ArrowRight':
+      case 'KeyL':
+        e.preventDefault()
+        seek(5) // Перемотка вперед на 5 сек
+        break
+      case 'ArrowLeft':
+      case 'KeyJ':
+        e.preventDefault()
+        seek(-5) // Перемотка назад на 5 сек
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        adjustVolume(0.1) // Громкость +10%
+        break
+      case 'ArrowDown':
+        e.preventDefault()
+        adjustVolume(-0.1) // Громкость -10%
+        break
+      case 'KeyF':
+        e.preventDefault()
+        toggleFullscreen()
+        break
+      case 'KeyM':
+        e.preventDefault()
+        toggleMute()
+        break
+    }
+  }
+
   if (typeof document !== 'undefined') {
     document.onfullscreenchange = () => {
       isFullscreen.value = !!document.fullscreenElement
@@ -189,5 +243,6 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     onVolumeInput,
     setPlaybackRate,
     setupBufferLogic,
+    handleKeyDown,
   }
 }
