@@ -9,6 +9,10 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
   const duration = ref(0)
   const animationFrameId = ref<number | null>(null)
 
+  const volume = ref(1)
+  const isMuted = ref(false)
+  const previousVolume = ref(1)
+
   const progressPercent = computed(() => {
     return duration.value ? (currentTime.value / duration.value) * 100 : 0
   })
@@ -45,6 +49,22 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
         cancelAnimationFrame(animationFrameId.value)
       }
     }
+  }
+
+  function toggleMute() {
+    if (!videoRef.value) return
+
+    if (isMuted.value) {
+      volume.value = previousVolume.value || 1
+      isMuted.value = false
+    } else {
+      previousVolume.value = volume.value
+      volume.value = 0
+      isMuted.value = true
+    }
+
+    videoRef.value.muted = isMuted.value
+    videoRef.value.volume = volume.value
   }
 
   function onStartDragging() {
@@ -105,6 +125,18 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     }
   }
 
+  function onVolumeInput(e: Event) {
+    const target = e.target as HTMLInputElement
+    const val = parseFloat(target.value)
+    volume.value = val
+
+    if (videoRef.value) {
+      videoRef.value.volume = val
+      videoRef.value.muted = val === 0
+      isMuted.value = val === 0
+    }
+  }
+
   if (typeof document !== 'undefined') {
     document.onfullscreenchange = () => {
       isFullscreen.value = !!document.fullscreenElement
@@ -124,6 +156,8 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     currentTime,
     duration,
     progressPercent,
+    volume,
+    isMuted,
     togglePlay,
     onStartDragging,
     onEndDragging,
@@ -131,5 +165,7 @@ export function useVideoPlayer(videoRef: Ref<HTMLVideoElement | null>) {
     toggleFullscreen,
     onLoadedMetadata,
     onInput,
+    toggleMute,
+    onVolumeInput,
   }
 }

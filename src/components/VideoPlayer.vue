@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Maximize, Minimize, Pause, Play } from '@lucide/vue'
+import { Maximize, Minimize, Pause, Play, Volume1, Volume2, VolumeX } from '@lucide/vue'
 import { ref } from 'vue'
 import VideoRange from './VideoRange.vue'
 import { useVideoPlayer } from '../composables/useVideoPlayer'
@@ -21,6 +21,8 @@ const {
   duration,
   progressPercent,
   isDragging,
+  volume,
+  isMuted,
   togglePlay,
   toggleFullscreen,
   onLoadedMetadata,
@@ -28,6 +30,8 @@ const {
   onInput,
   onStartDragging,
   onEndDragging,
+  toggleMute,
+  onVolumeInput,
 } = useVideoPlayer(videoRef)
 </script>
 
@@ -60,16 +64,38 @@ const {
       />
 
       <div class="controls-row">
-        <div class="time-block">
-          <span class="current">{{ formatTime(currentTime) }}</span>
-          <span class="divider">/</span>
-          <span class="total">{{ formatTime(duration) }}</span>
+        <div class="left-controls">
+          <div class="time-block">
+            <span class="current">{{ formatTime(currentTime) }}</span>
+            <span class="divider">/</span>
+            <span class="total">{{ formatTime(duration) }}</span>
+          </div>
         </div>
 
-        <button class="fullscreen-btn" @click="toggleFullscreen">
-          <Minimize v-if="isFullscreen" :size="20" color="white" stroke-width="2.5" />
-          <Maximize v-else :size="20" color="white" stroke-width="2.5" />
-        </button>
+        <div class="right-controls">
+          <div class="volume-control">
+            <button class="mute-btn" @click="toggleMute">
+              <VolumeX v-if="isMuted || volume === 0" :size="20" color="white" />
+              <Volume1 v-else-if="volume < 0.5" :size="20" color="white" />
+              <Volume2 v-else :size="20" color="white" />
+            </button>
+            <input
+              type="range"
+              class="volume-slider"
+              min="0"
+              max="1"
+              step="0.05"
+              :value="volume"
+              @input="onVolumeInput"
+              :style="{ '--volume-percent': `${volume * 100}%` }"
+            />
+          </div>
+
+          <button class="fullscreen-btn" @click="toggleFullscreen">
+            <Minimize v-if="isFullscreen" :size="20" color="white" />
+            <Maximize v-else :size="20" color="white" />
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -159,6 +185,83 @@ video {
   justify-content: space-between;
   align-items: center;
   height: 24px;
+}
+
+.right-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mute-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  opacity: 0.8;
+}
+
+.mute-btn:hover {
+  opacity: 1;
+}
+
+.volume-slider {
+  width: 0;
+  opacity: 0;
+  transition:
+    width 0.2s,
+    opacity 0.2s;
+  cursor: pointer;
+  height: 4px;
+  appearance: none;
+  background: linear-gradient(
+    to right,
+    #fff 0%,
+    #fff var(--volume-percent),
+    rgba(255, 255, 255, 0.3) var(--volume-percent),
+    rgba(255, 255, 255, 0.3) 100%
+  );
+  border-radius: 2px;
+}
+
+.volume-control:hover .volume-slider {
+  width: 60px;
+  opacity: 1;
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  margin-top: -4px;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.volume-slider::-moz-range-track {
+  height: 4px;
+  background: transparent;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: none;
+  border-radius: 50%;
 }
 
 .time-block {
